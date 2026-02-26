@@ -1,4 +1,9 @@
+# This repository  is a fork of https://github.com/hashicorp/vault-action
+The main difference is that this action enables the capability of writing secrets. The oficial Hashicorp Vault Action is designed to be read-only.
+
+
 # Vault GitHub Action
+
 
 ---
 
