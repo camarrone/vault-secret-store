@@ -55,7 +55,7 @@ jobs:
             # ...
             - name: Import Secrets
               id: import-secrets
-              uses: hashicorp/vault-action@v2
+              uses: camarrone/vault-secret-store@v0.0.1
               with:
                 url: https://vault.mycompany.com:8200
                 token: ${{ secrets.VAULT_TOKEN }}
@@ -493,7 +493,7 @@ parameter specifying the namespace. In HCP Vault, the namespace defaults to `adm
 steps:
     # ...
     - name: Import Secrets
-      uses: hashicorp/vault-action
+      uses: camarrone/vault-secret-store
       with:
         url: https://vault-enterprise.mycompany.com:8200
         caCertificate: ${{ secrets.VAULT_CA_CERT }}
