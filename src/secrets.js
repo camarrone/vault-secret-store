@@ -1,3 +1,8 @@
+/**
+ * Copyright IBM Corp. 2019, 2025
+ * SPDX-License-Identifier: MIT
+ */
+
 const jsonata = require("jsonata");
 const { WILDCARD, WILDCARD_UPPERCASE} = require("./constants");
 const { normalizeOutputKey } = require("./utils");
@@ -114,43 +119,6 @@ async function getSecrets(secretRequests, client, ignoreNotFound) {
     return results;
 }
 
- /**
-  * @template TRequest
-  * @param {Array<TRequest>} secretRequests
-  * @param {import('got').Got} client
-  * @return {Promise<SecretResponse<TRequest>[]>}
-  */
- async function writeSecrets(secretRequests, client) {
-    const results = [];
-    for (const secretRequest of secretRequests) {
-        let { path, selector, secretsData } = secretRequest;
-        const requestPath = `v1/${path}`;
-        let body;
-        const jsonata = {};
-        for (const [key, value] of secretsData) {
-            jsonata[key] = value;
-        }
-
-        try {
-            const result = await client.post(requestPath,{
-                json: {
-                    data: jsonata
-                }
-            });
-            body = result.body;
-        } catch (error) {
-            throw error
-        }
-        //body = JSON.parse(body); //body.request_id
-        results.push({
-            request: secretRequest,
-            value: 'SUCCESS',
-            cachedResponse: false 
-        });
-    }
-    return results;
-}
-
 /**
  * Uses a Jsonata selector retrieve a bit of data from the result
  * @param {object} data
@@ -168,18 +136,7 @@ async function selectData(data, selector) {
     }
 
     if (result.startsWith(`"`)) {
-        // Support multi-line secrets like JSON strings and ssh keys, see https://github.com/hashicorp/vault-action/pull/173
-        // Deserialize the value so that newlines and special characters are
-        // not escaped in our return value.
         result = JSON.parse(result);
-    } else {
-        // Support secrets stored in Vault as pure JSON, see https://github.com/hashicorp/vault-action/issues/194
-        // Serialize the value so that any special characters in the data are
-        // properly escaped.
-        result = JSON.stringify(result);
-        // strip the surrounding quotes added by stringify because the data did
-        // not have them in the first place
-        result = result.substring(1, result.length - 1);
     }
     return result;
 }
@@ -220,6 +177,76 @@ const selectAndAppendResults = async (
     },
   ];
 };
+
+/**
+ * Uses a Jsonata selector retrieve a bit of data from the result
+ * @param {object} data
+ * @param {string} selector
+ */
+async function selectData(data, selector) {
+    const ata = jsonata(selector);
+    let result = JSON.stringify(await ata.evaluate(data));
+
+    // Compat for custom engines
+    if (!result && ((ata.ast().type === "path" && ata.ast()['steps'].length === 1) || ata.ast().type === "string") && selector !== 'data' && 'data' in data) {
+        result = JSON.stringify(await jsonata(`data.${selector}`).evaluate(data));
+    } else if (!result) {
+        throw Error(`Unable to retrieve result for ${selector}. No match data was found. Double check your Key or Selector.`);
+    }
+
+    if (result.startsWith(`"`)) {
+        // Support multi-line secrets like JSON strings and ssh keys, see https://github.com/hashicorp/vault-action/pull/173
+        // Deserialize the value so that newlines and special characters are
+        // not escaped in our return value.
+        result = JSON.parse(result);
+    } else {
+        // Support secrets stored in Vault as pure JSON, see https://github.com/hashicorp/vault-action/issues/194
+        // Serialize the value so that any special characters in the data are
+        // properly escaped.
+        result = JSON.stringify(result);
+        // strip the surrounding quotes added by stringify because the data did
+        // not have them in the first place
+        result = result.substring(1, result.length - 1);
+    }
+    return result;
+}
+
+ /**
+  * @template TRequest
+  * @param {Array<TRequest>} secretRequests
+  * @param {import('got').Got} client
+  * @return {Promise<SecretResponse<TRequest>[]>}
+  */
+ async function writeSecrets(secretRequests, client) {
+    const results = [];
+    for (const secretRequest of secretRequests) {
+        let { path, selector, secretsData } = secretRequest;
+        const requestPath = `v1/${path}`;
+        let body;
+        const jsonata = {};
+        for (const [key, value] of secretsData) {
+            jsonata[key] = value;
+        }
+
+        try {
+            const result = await client.post(requestPath,{
+                json: {
+                    data: jsonata
+                }
+            });
+            body = result.body;
+        } catch (error) {
+            throw error
+        }
+        //body = JSON.parse(body); //body.request_id
+        results.push({
+            request: secretRequest,
+            value: 'SUCCESS',
+            cachedResponse: false 
+        });
+    }
+    return results;
+}
 
 module.exports = {
     getSecrets,
