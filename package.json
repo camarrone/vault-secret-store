@@ -1,7 +1,6 @@
 {
     "name": "vault-action",
     "version": "0.1.0",
-    "type": "module",
     "description": "A Github Action that allows you to consume vault secrets as secure environment variables.",
     "main": "dist/index.js",
     "scripts": {
